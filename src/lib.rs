@@ -10,7 +10,7 @@
 
 use std::time::Duration;
 
-use resilience::{Attempt, Decision, Guard, TimeoutPolicy};
+use resilience::{Attempt, Decision, Guard};
 
 /// The timeout guard: an attempt may take this long.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,12 +27,6 @@ impl Timeout {
             limit,
             lenient: false,
         }
-    }
-
-    /// The guard the platform's policy declares.
-    #[must_use]
-    pub const fn from_policy(policy: &TimeoutPolicy) -> Self {
-        Self::new(policy.timeout)
     }
 
     /// Judge failures only: a success stands however long it took.
@@ -81,8 +75,9 @@ impl Guard for Timeout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use resilience::{Failure, Guarded, execute};
+    use resilience::{Guarded, execute};
     use std::cell::Cell;
+    use xcore::Failure;
 
     fn attempt(elapsed: Duration, failure: Option<Failure>) -> Attempt {
         Attempt {
@@ -110,9 +105,7 @@ mod tests {
 
     #[test]
     fn a_quick_attempt_stands_whether_it_succeeded_or_failed() {
-        let timeout = Timeout::from_policy(&TimeoutPolicy {
-            timeout: Duration::from_millis(10),
-        });
+        let timeout = Timeout::new(Duration::from_millis(10));
         assert_eq!(timeout.limit(), Duration::from_millis(10));
         assert_eq!(
             timeout.after(&attempt(Duration::from_millis(1), None)),
@@ -180,7 +173,7 @@ mod tests {
 
         fn after(&self, attempt: &Attempt) -> Decision {
             match &attempt.failure {
-                Some(failure) if failure.is_retryable() && attempt.number < self.0 => {
+                Some(failure) if failure.retryable && attempt.number < self.0 => {
                     Decision::Wait(Duration::ZERO)
                 }
                 _ => Decision::Proceed,
