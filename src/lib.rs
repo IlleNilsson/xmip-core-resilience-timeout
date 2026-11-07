@@ -76,6 +76,7 @@ impl Guard for Timeout {
 mod tests {
     use super::*;
     use resilience::{Guarded, execute};
+    use std::assert_matches;
     use std::cell::Cell;
     use xcore::Failure;
 
@@ -191,7 +192,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
             Err(Failure::retryable("again"))
         });
-        assert!(matches!(outcome, Ok(Guarded::Refused(_))), "{outcome:?}");
+        assert_matches!(outcome, Ok(Guarded::Refused(_)), "{outcome:?}");
         assert_eq!(calls.get(), 1, "the timeout decided before retry was asked");
 
         let guards: [&dyn Guard; 2] = [&Again(3), &timeout];
@@ -201,7 +202,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
             Err(Failure::retryable("again"))
         });
-        assert!(matches!(outcome, Ok(Guarded::Refused(_))), "{outcome:?}");
+        assert_matches!(outcome, Ok(Guarded::Refused(_)), "{outcome:?}");
         assert_eq!(
             calls.get(),
             3,
